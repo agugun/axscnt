@@ -3,7 +3,6 @@
 
 namespace mod {
 using namespace top;
-namespace heat {
 
 /**
  * @brief Base class for all Heat Simulation states.
@@ -33,5 +32,4 @@ public:
     // clone() remains pure virtual to be implemented by spatial subclasses.
 };
 
-} // namespace heat
 } // namespace mod

@@ -1,5 +1,5 @@
 #pragma once
-#include "lib/simulation_engine.hpp"
+#include "lib/simulation.hpp"
 #include "lib/linearizers.hpp"
 #include "lib/engine_infra.hpp"
 #include "lib/discretization.hpp"
@@ -16,7 +16,7 @@ class Wave2DImplicitSimulation {
 public:
     struct BuildResult {
         std::unique_ptr<top::SimulationEngine> engine;
-        std::unique_ptr<top::IState> initial_state;
+        std::unique_ptr<top::IState> st_init;
         std::shared_ptr<utl::StandardLogger> logger;
     };
 
@@ -31,7 +31,7 @@ public:
         
         // 1. Grid and State
         auto spatial = std::make_shared<Spatial2D>(nx, ny, dx, dy);
-        auto state = std::make_unique<Wave2DState>(spatial);
+        auto st = std::make_unique<Wave2DState>(spatial);
         
         // Initial condition: Gaussian pulse in the center
         for (size_t j = 0; j < ny; ++j) {
@@ -39,7 +39,7 @@ public:
                 double x = i * dx;
                 double y = j * dy;
                 double dist_sq = std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2);
-                state->u[spatial->idx(i, j)] = std::exp(-dist_sq / 0.01);
+                st->u[spatial->idx(i, j)] = std::exp(-dist_sq / 0.01);
             }
         }
 
@@ -47,7 +47,7 @@ public:
         auto cond = num::discretization::heat_cond_2d(nx, ny, dx, dy, c * c, area); 
         Vector storage = num::discretization::heat_storage(nx * ny, dx * dy * area, rho, 1.0);
         
-        auto model = std::make_shared<Wave2DModel>(cond, storage);
+        auto mdl = std::make_shared<Wave2DModel>(cond, storage);
         auto discretizer = std::make_shared<Wave2DDiscretizer>();
         
         // 3. Engine Components
@@ -60,7 +60,7 @@ public:
         
         auto pm = std::make_shared<top::SerialParallelManager>();
 
-        auto engine = std::make_unique<top::SimulationEngine>(spatial, model, discretizer, timer, linearizer, solver, pm);
+        auto engine = std::make_unique<top::SimulationEngine>(spatial, mdl, discretizer, timer, linearizer, solver, pm);
 
         // 4. Logger / Observer setup
         auto logger = std::make_shared<utl::StandardLogger>(config);
@@ -72,7 +72,7 @@ public:
         
         engine->add_observer(logger);
 
-        return { std::move(engine), std::move(state), logger };
+        return { std::move(engine), std::move(st), logger };
     }
 };
 

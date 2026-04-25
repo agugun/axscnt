@@ -2,7 +2,7 @@
 #include "lib/spatial.hpp"
 #include "lib/interfaces.hpp"
 
-namespace mod::burgers {
+namespace mod {
 using namespace top;
 
 /**
@@ -16,7 +16,7 @@ public:
     BurgersState(std::shared_ptr<Spatial1D> s, double initial_val = 0.0) 
         : u(s->nx, initial_val), spatial(s) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         for (size_t i = 0; i < u.size(); ++i) {
             u[i] += delta[i];
         }
@@ -33,4 +33,4 @@ public:
     }
 };
 
-} // namespace mod::burgers
+} // namespace mod

@@ -6,7 +6,6 @@
 
 namespace mod {
 using namespace top;
-namespace reservoir {
 
 /**
  * @brief 2D Reservoir Physical Model (Properties).
@@ -23,7 +22,7 @@ public:
 
     double get_tolerance() const override { return 1e-4; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
         return storage_coeff;
     }
 
@@ -37,9 +36,9 @@ public:
  */
 class Reservoir2DDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& r_model = static_cast<const Reservoir2DModel&>(model);
-        const auto& r_state = static_cast<const Reservoir2DState&>(state);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& r_model = static_cast<const Reservoir2DModel&>(mdl);
+        const auto& r_state = static_cast<const Reservoir2DState&>(st);
         int nx = (int)r_state.spatial->nx;
         int ny = (int)r_state.spatial->ny;
 
@@ -77,9 +76,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& r_model = static_cast<const Reservoir2DModel&>(model);
-        const auto& r_state = static_cast<const Reservoir2DState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& r_model = static_cast<const Reservoir2DModel&>(mdl);
+        const auto& r_state = static_cast<const Reservoir2DState&>(st);
         int nx = (int)r_state.spatial->nx;
         int ny = (int)r_state.spatial->ny;
 
@@ -99,10 +98,9 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
         // No-flow is default.
     }
 };
 
-} // namespace reservoir
 } // namespace mod

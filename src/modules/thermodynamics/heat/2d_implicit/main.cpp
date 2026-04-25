@@ -30,14 +30,14 @@ int main(int argc, char** argv) {
     omp_set_num_threads(config.get("num_threads", 1));
 
     // 2. Construction: Simulation Engine & Logger
-    auto [engine, state, logger] = Heat2DImplicitSimulation::build(config);
+    auto [engine, st, logger] = Heat2DImplicitSimulation::build(config);
 
     // 3. Execution: Orchestration
     double t_end = config.get("t_end", 2.0);
     double dt = config.get("dt", 0.1);
 
     std::cout << "Starting Heat 2D Implicit Simulation\n";
-    engine->simulate(t_end, dt, std::move(state));
+    engine->run(t_end, dt, std::move(st));
 
     std::cout << "Simulation Successful.\n";
     return 0;

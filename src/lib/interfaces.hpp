@@ -32,7 +32,7 @@ public:
 class IState {
 public:
     virtual ~IState() = default;
-    virtual void apply_update(const std::vector<double>& delta) = 0;
+    virtual void update(const std::vector<double>& delta) = 0;
     virtual std::vector<double> to_vector() const = 0;
     virtual std::unique_ptr<IState> clone() const = 0;
 };
@@ -56,7 +56,7 @@ public:
     /**
      * @brief Returns the diagonal weights for the accumulation term (e.g., C in C*du/dt).
      */
-    virtual Vector get_accumulation_weights(const IGrid& grid, const IState& state) const = 0;
+    virtual Vector get_accumulation_weights(const IGrid& grd, const IState& st) const = 0;
 };
 
 /**
@@ -66,9 +66,9 @@ public:
 class IDiscretizer {
 public:
     virtual ~IDiscretizer() = default;
-    virtual void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const = 0;
-    virtual void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const = 0;
-    virtual void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const = 0;
+    virtual void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const = 0;
+    virtual void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const = 0;
+    virtual void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const = 0;
 };
 
 /**
@@ -77,7 +77,7 @@ public:
 class ISourceSink {
 public:
     virtual ~ISourceSink() = default;
-    virtual void assemble_terms(const IState& state, SparseMatrix& J, Vector& R) const = 0;
+    virtual void assemble_terms(const IState& st, SparseMatrix& J, Vector& R) const = 0;
 };
 
 /**
@@ -86,8 +86,8 @@ public:
 class ITimeIntegrator {
 public:
     virtual ~ITimeIntegrator() = default;
-    virtual double get_next_timestep(const IState& state, double t) const = 0;
-    virtual void add_accumulation(const IGrid& grid, const IModel& model, SparseMatrix& J, Vector& R, const IState& state_new, const IState& state_old, double dt) const = 0;
+    virtual double compute_dt(const IState& st, double t) const = 0;
+    virtual void apply_temporal(const IGrid& grd, const IModel& mdl, SparseMatrix& J, Vector& R, const IState& st_new, const IState& st_old, double dt) const = 0;
 };
 
 /**
@@ -105,7 +105,7 @@ public:
 class IParallelManager {
 public:
     virtual ~IParallelManager() = default;
-    virtual void sync_ghost_cells(IState& state) const = 0;
+    virtual void sync_ghost_cells(IState& st) const = 0;
     virtual double get_global_norm(const Vector& r) const = 0;
 };
 
@@ -115,11 +115,13 @@ public:
 class ILinearizer {
 public:
     virtual ~ILinearizer() = default;
-    virtual std::unique_ptr<IState> solve_timestep(
-        const IState& state_n, double dt, 
-        const IGrid& grid, const IModel& model, const IDiscretizer& discretizer,
-        const ITimeIntegrator& timer, ISolver& solver, const IParallelManager& pm,
-        const std::vector<std::shared_ptr<ISourceSink>>& sources) = 0;
+    
+    virtual void set_sources(const std::vector<std::shared_ptr<ISourceSink>>& sources) = 0;
+
+    virtual std::unique_ptr<IState> resolve(
+        const IState& st_n, double dt, 
+        const IGrid& grd, const IModel& mdl, const IDiscretizer& discretizer,
+        const ITimeIntegrator& timer, ISolver& solver, const IParallelManager& pm) = 0;
 };
 
 /**
@@ -128,8 +130,8 @@ public:
 class IObserver {
 public:
     virtual ~IObserver() = default;
-    virtual void on_simulation_start(const IGrid& grid) {}
-    virtual void on_step_complete(double t, int step, const IState& state) = 0;
+    virtual void on_simulation_start(const IGrid& grd) {}
+    virtual void on_step_complete(double t, int step, const IState& st) = 0;
     virtual void on_simulation_end() {}
 };
 

@@ -19,7 +19,7 @@ public:
 
     double get_tolerance() const override { return 1e-4; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
         size_t n = storage_coeff.size();
         Vector weights(2 * n);
         for (size_t i = 0; i < n; ++i) {
@@ -38,9 +38,9 @@ public:
  */
 class Wave2DDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& w_model = static_cast<const Wave2DModel&>(model);
-        const auto& w_state = static_cast<const Wave2DState&>(state);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& w_model = static_cast<const Wave2DModel&>(mdl);
+        const auto& w_state = static_cast<const Wave2DState&>(st);
         int n = (int)w_state.u.size();
         int nx = (int)w_state.spatial->nx;
         int ny = (int)w_state.spatial->ny;
@@ -73,9 +73,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& w_model = static_cast<const Wave2DModel&>(model);
-        const auto& w_state = static_cast<const Wave2DState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& w_model = static_cast<const Wave2DModel&>(mdl);
+        const auto& w_state = static_cast<const Wave2DState&>(st);
         int n = (int)w_state.u.size();
         int nx = (int)w_state.spatial->nx;
         int ny = (int)w_state.spatial->ny;
@@ -102,8 +102,8 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
-        const auto& w_state = static_cast<const Wave2DState&>(state);
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
+        const auto& w_state = static_cast<const Wave2DState&>(st);
         int n = (int)w_state.u.size();
         int nx = (int)w_state.spatial->nx;
         int ny = (int)w_state.spatial->ny;

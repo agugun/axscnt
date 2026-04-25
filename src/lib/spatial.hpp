@@ -21,12 +21,12 @@
  */
 #include "interfaces.hpp"
 
-namespace top {
+namespace mod {
 
 /**
  * @brief 1D Spatial Grid Metadata.
  */
-class Spatial1D : public IGrid {
+class Spatial1D : public top::IGrid {
 public:
     size_t nx;
     double dx;
@@ -39,7 +39,7 @@ public:
 /**
  * @brief 2D Spatial Grid Metadata.
  */
-class Spatial2D : public IGrid {
+class Spatial2D : public top::IGrid {
 public:
     size_t nx, ny;
     double dx, dy;
@@ -58,7 +58,7 @@ public:
 /**
  * @brief 3D Spatial Grid Metadata.
  */
-class Spatial3D : public IGrid {
+class Spatial3D : public top::IGrid {
 public:
     size_t nx, ny, nz;
     double dx, dy, dz;
@@ -74,4 +74,4 @@ public:
     }
 };
 
-} // namespace top
+} // namespace mod

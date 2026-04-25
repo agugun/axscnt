@@ -23,7 +23,7 @@ public:
 
     double get_tolerance() const override { return 1e-6; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
         return storage_coeff;
     }
 };
@@ -34,9 +34,9 @@ public:
  */
 class Heat3DDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& h_model = static_cast<const Heat3DModel&>(model);
-        const auto& h_state = static_cast<const Heat3DImplicitState&>(state);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& h_model = static_cast<const Heat3DModel&>(mdl);
+        const auto& h_state = static_cast<const Heat3DImplicitState&>(st);
         int nx = (int)h_state.spatial->nx;
         int ny = (int)h_state.spatial->ny;
         int nz = (int)h_state.spatial->nz;
@@ -70,9 +70,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& h_model = static_cast<const Heat3DModel&>(model);
-        const auto& h_state = static_cast<const Heat3DImplicitState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& h_model = static_cast<const Heat3DModel&>(mdl);
+        const auto& h_state = static_cast<const Heat3DImplicitState&>(st);
         int nx = (int)h_state.spatial->nx;
         int ny = (int)h_state.spatial->ny;
         int nz = (int)h_state.spatial->nz;
@@ -96,9 +96,9 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
-        const auto& h_model = static_cast<const Heat3DModel&>(model);
-        const auto& h_state = static_cast<const Heat3DImplicitState&>(state);
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
+        const auto& h_model = static_cast<const Heat3DModel&>(mdl);
+        const auto& h_state = static_cast<const Heat3DImplicitState&>(st);
         int nx = (int)h_state.spatial->nx;
         int ny = (int)h_state.spatial->ny;
         int nz = (int)h_state.spatial->nz;

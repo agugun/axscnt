@@ -19,7 +19,7 @@
  * (Pressure vs Temperature) that generated the system.
  */
 #pragma once
-#include "modules.hpp"
+#include "lib/interfaces.hpp"
 #include <vector>
 #include <iostream>
 #include <cmath>

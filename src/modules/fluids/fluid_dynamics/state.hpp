@@ -2,9 +2,8 @@
 #include "lib/fem.hpp"
 #include "lib/interfaces.hpp"
 
-namespace mod::fluid {
+namespace mod {
 using namespace top;
-using namespace num::fem;
 
 /**
  * @brief State representing the incompressible velocity (u, v) and pressure (p) fields.
@@ -20,7 +19,7 @@ public:
     FluidState(std::shared_ptr<Mesh> m) 
         : u(m->num_nodes(), 0.0), v(m->num_nodes(), 0.0), p(m->num_nodes(), 0.0), mesh(m) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         size_t n = mesh->num_nodes();
         for (size_t i = 0; i < n; ++i) {
             u[i] += delta[i];
@@ -49,4 +48,4 @@ public:
     }
 };
 
-} // namespace mod::fluid
+} // namespace mod

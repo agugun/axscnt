@@ -1,6 +1,6 @@
 #include "modules/reservoir/well.hpp"
 #pragma once
-#include "lib/simulation_engine.hpp"
+#include "lib/simulation.hpp"
 #include "lib/linearizers.hpp"
 #include "lib/engine_infra.hpp"
 #include "lib/discretization.hpp"
@@ -17,7 +17,7 @@ class Reservoir1DImplicitSimulation {
 public:
     struct BuildResult {
         std::unique_ptr<top::SimulationEngine> engine;
-        std::unique_ptr<top::IState> initial_state;
+        std::unique_ptr<top::IState> st_init;
         std::shared_ptr<utl::StandardLogger> logger;
     };
 
@@ -32,7 +32,7 @@ public:
         
         // 1. Grid and State
         auto spatial = std::make_shared<Spatial1D>(nx, dx);
-        auto state = std::make_unique<Reservoir1DState>(spatial, config.get("p_initial", 2000.0));
+        auto st = std::make_unique<Reservoir1DState>(spatial, config.get("p_initial", 2000.0));
         
         // 2. Physics Model and Discretization
         auto cond = num::discretization::pressure_cond_1d(nx, dx, k, mu, area);
@@ -47,7 +47,7 @@ public:
             ));
         }
 
-        auto model = std::make_shared<Reservoir1DModel>(cond, storage, wells);
+        auto mdl = std::make_shared<Reservoir1DModel>(cond, storage, wells);
         auto discretizer = std::make_shared<Reservoir1DDiscretizer>();
         
         // 3. Engine Components
@@ -56,7 +56,7 @@ public:
         auto solver = std::make_shared<num::LinearTridiagonalSolver>();
         auto pm = std::make_shared<top::SerialParallelManager>();
 
-        auto engine = std::make_unique<top::SimulationEngine>(spatial, model, discretizer, timer, linearizer, solver, pm);
+        auto engine = std::make_unique<top::SimulationEngine>(spatial, mdl, discretizer, timer, linearizer, solver, pm);
 
         // 4. Logger / Observer setup
         auto logger = std::make_shared<utl::StandardLogger>(config);
@@ -67,7 +67,7 @@ public:
         
         engine->add_observer(logger);
 
-        return { std::move(engine), std::move(state), logger };
+        return { std::move(engine), std::move(st), logger };
     }
 };
 

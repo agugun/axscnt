@@ -11,14 +11,14 @@ using namespace top;
  */
 class ImplicitEulerIntegrator : public ITimeIntegrator {
 public:
-    double get_next_timestep(const IState& state, double t) const override {
+    double compute_dt(const IState& st, double t) const override {
         return 0.1; // Default
     }
 
-    void add_accumulation(const IGrid& grid, const IModel& model, SparseMatrix& J, Vector& R, const IState& state_new, const IState& state_old, double dt) const override {
-        Vector weights = model.get_accumulation_weights(grid, state_new);
-        Vector u_new = state_new.to_vector();
-        Vector u_old = state_old.to_vector();
+    void apply_temporal(const IGrid& grd, const IModel& mdl, SparseMatrix& J, Vector& R, const IState& st_new, const IState& st_old, double dt) const override {
+        Vector weights = mdl.get_accumulation_weights(grd, st_new);
+        Vector u_new = st_new.to_vector();
+        Vector u_old = st_old.to_vector();
         size_t n = R.size();
         
         #pragma omp parallel for
@@ -39,9 +39,9 @@ public:
  */
 class ForwardEulerIntegrator : public ITimeIntegrator {
 public:
-    double get_next_timestep(const IState& state, double t) const override { return 0.01; }
+    double compute_dt(const IState& st, double t) const override { return 0.01; }
     
-    void add_accumulation(const IGrid& grid, const IModel& model, SparseMatrix& J, Vector& R, const IState& state_new, const IState& state_old, double dt) const override {
+    void apply_temporal(const IGrid& grd, const IModel& mdl, SparseMatrix& J, Vector& R, const IState& st_new, const IState& st_old, double dt) const override {
         // Forward Euler in Newton-Raphson is not standard.
         // We throw to indicate this shouldn't be used with SimulationEngine's current linearizer.
         throw std::runtime_error("ForwardEulerIntegrator not supported in the current linearized framework.");
@@ -53,9 +53,9 @@ public:
  */
 class RungeKutta4Integrator : public ITimeIntegrator {
 public:
-    double get_next_timestep(const IState& state, double t) const override { return 0.01; }
+    double compute_dt(const IState& st, double t) const override { return 0.01; }
     
-    void add_accumulation(const IGrid& grid, const IModel& model, SparseMatrix& J, Vector& R, const IState& state_new, const IState& state_old, double dt) const override {
+    void apply_temporal(const IGrid& grd, const IModel& mdl, SparseMatrix& J, Vector& R, const IState& st_new, const IState& st_old, double dt) const override {
         throw std::runtime_error("RungeKutta4Integrator not supported in the current linearized framework.");
     }
 };

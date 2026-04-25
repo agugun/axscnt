@@ -18,7 +18,7 @@ public:
     Reservoir3DState(std::shared_ptr<Spatial3D> s, double initial_p)
         : spatial(s), pressures(s->nx * s->ny * s->nz, initial_p) {}
 
-    void apply_update(const top::Vector& delta) override {
+    void update(const top::Vector& delta) override {
         for (size_t i = 0; i < pressures.size(); ++i) {
             pressures[i] += delta[i];
         }

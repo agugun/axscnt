@@ -18,7 +18,7 @@ public:
 
     double get_tolerance() const override { return 1e-4; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
         return { volume * ct }; // Accumulation is volume * ct * dP
     }
 };
@@ -29,19 +29,19 @@ public:
  */
 class MBADiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
         if (J.rows != 1) J = SparseMatrix(1, 1);
         J.triplets.clear();
         // For dP/dt = -q/(V*ct), J is 0 (rate is constant)
         // But for the linear system in NewtonRaphson: J is just the 0-matrix which is fine.
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& m = static_cast<const MBAModel&>(model);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& m = static_cast<const MBAModel&>(mdl);
         R[0] = m.q; // Residual is Flux - Rate. Flux=0.
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
         // No boundaries for 0D tank.
     }
 };

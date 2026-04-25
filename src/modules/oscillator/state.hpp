@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 
-namespace mod::oscillator {
+namespace mod {
 
 // Strong semantic typing for physical quantities
 using Position_m = double;
@@ -20,7 +20,7 @@ public:
 
     OscillatorState(Position_m x0, Velocity_ms v0) : x(x0), v(v0) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         // delta is the Newton-Raphson update or Explicit update
         x += delta[0];
         v += delta[1];
@@ -35,4 +35,4 @@ public:
     }
 };
 
-} // namespace mod::oscillator
+} // namespace mod

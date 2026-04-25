@@ -24,13 +24,13 @@ int main(int argc, char** argv) {
     int num_threads = config.get("num_threads", 4);
     omp_set_num_threads(num_threads);
 
-    auto [engine, state, logger] = OilGas2DImplicitSimulation::build(config);
+    auto [engine, st, logger] = OilGas2DImplicitSimulation::build(config);
 
     double dt = config.get("dt", 1.0);
     double t_end = config.get("t_end", 20.0);
 
     std::cout << "Starting 2D Oil-Gas Reservoir Simulation [Refactored Architecture]...\n";
-    engine->simulate(t_end, dt, std::move(state));
+    engine->run(t_end, dt, std::move(st));
 
     std::cout << "Oil-Gas Simulation Successfully Completed.\n";
     return 0;

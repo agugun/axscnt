@@ -4,7 +4,6 @@
 
 namespace mod {
 using namespace top;
-namespace reservoir {
 
 class Reservoir2DState : public IState {
 public:
@@ -14,7 +13,7 @@ public:
     Reservoir2DState(std::shared_ptr<Spatial2D> s, double initial_p)
         : pressures(s->total_size(), initial_p), spatial(s) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         for (size_t i = 0; i < pressures.size(); ++i) {
             pressures[i] += delta[i];
         }
@@ -31,5 +30,4 @@ public:
     }
 };
 
-} // namespace reservoir
 } // namespace mod

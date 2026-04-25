@@ -42,35 +42,107 @@ axscnt/
 - **Infrastructure (namespaces `utl`)**: Handles cross-cutting concerns like hierarchical configuration, standardized logging, and filesystem orchestration.
 
 #### Physics Module Anatomy (namespaces `mod`)
-1.  **`model.hpp`**: Defines the physical constants and the **Governing Equation** discretization.
-2.  **`state.hpp`**: A structured snapshot of the field data at any point in time.
-3.  **`simulation.hpp`**: A factory/builder that assembles the complex object graph (Grid ➔ Discretizer ➔ Linearizer ➔ Solver).
-4.  **`main.cpp`**: The execution orchestrator for standalone deployment.
+1.  **`mdl.hpp`**: Defines the physical constants and the **Governing Equation** discretization.
+2.  **`st.hpp`**: A structured snapshot of the field data at any point in time.
+3.  **`main.cpp`**: The central orchestrator that handles both the **Factory/Builder** setup (assembling the object graph) and the **Execution** phase.
 
 ```mermaid
 classDiagram
     namespace top {
-        class IGrid { +get_total_cells() }
-        class IState { +apply_update() }
-        class IModel { +get_accumulation_weights() }
-        class IDiscretizer { +assemble_jacobian() }
-        class ILinearizer { +solve_timestep() }
-        class ISolver { +solve() }
-        class ITimeIntegrator { +add_accumulation() }
-        class SimulationEngine { +simulate() }
+        class IGrid { 
+            <<interface>>
+            +get_total_cells() 
+        }
+        class IState { 
+            <<interface>>
+            +update(delta)
+            +to_vector()
+            +clone() 
+        }
+        class IModel { 
+            <<interface>>
+            +get_tolerance()
+            +get_accumulation_weights(grd, st) 
+        }
+        class IDiscretizer { 
+            <<interface>>
+            +build_jacobian(grd, mdl, st, J)
+            +build_residual(grd, mdl, st, R)
+            +apply_bc(grd, mdl, st, J, R) 
+        }
+        class ILinearizer { 
+            <<interface>>
+            +set_sources(sources)
+            +resolve(st_n, dt, grd, mdl, disc, timer, solver, pm) 
+        }
+        class ISolver { 
+            <<interface>>
+            +solve(A, b) 
+        }
+        class ITimeIntegrator { 
+            <<interface>>
+            +compute_dt(st, t)
+            +apply_temporal(grd, mdl, J, R, s_new, s_old, dt) 
+        }
+        class SimulationEngine { 
+            -grd
+            -mdl
+            -discretizer
+            -timer
+            -linearizer
+            -solver
+            -parallel
+            -sources
+            -observers
+            +add_observer(ob)
+            +step(t, dt, st)
+            +run(t_max, dt_init, st_init) 
+        }
     }
     
     namespace num {
-        class Spatial1D
-        class ImplicitEulerIntegrator
-        class LinearTridiagonalSolver
-        class NewtonRaphson
+        class ImplicitEulerIntegrator { 
+            +compute_dt(s, t)
+            +apply_temporal(g, m, J, R, sn, so, dt) 
+        }
+        class LinearTridiagonalSolver { 
+            +solve(A, b) 
+        }
+        class NewtonRaphson { 
+            -max_iter
+            -tolerance
+            -verbose
+            +set_sources(src)
+            +resolve(sn, dt, g, m, d, t, s, p) 
+        }
     }
 
-    namespace mod_pressure {
-        class Pressure1DState
-        class Pressure1DModel
-        class Pressure1DDiscretizer
+    namespace mod {
+        class Spatial1D { 
+            +nx
+            +dx
+            +get_total_cells() 
+        }
+        class Pressure1DState { 
+            +pressures
+            +spatial
+            +update(delta) 
+        }
+        class Pressure1DModel { 
+            +p_left
+            +p_right
+            +cond
+            +get_tolerance() 
+        }
+        class Pressure1DDiscretizer { 
+            +build_jacobian(g, m, s, J)
+            +build_residual(g, m, s, R)
+            +apply_bc(g, m, s, J, R) 
+        }
+    }
+
+    class Main ["main.cpp"] {
+        +build_simulation(config)
     }
 
     <<Linearizer>> NewtonRaphson
@@ -103,11 +175,14 @@ classDiagram
     SimulationEngine o-- ILinearizer : utilizes
     SimulationEngine o-- ITimeIntegrator : steps
     SimulationEngine o-- ISolver : resolves
+
+    %% Orchestration Flow
+    Main --> SimulationEngine : builds & runs
 ```
 
 #### Software Engineering Design Patterns
 *   **Strategy Pattern (`ITimeIntegrator`, `ISolver`)**: Enables dynamic swapping of numerical methods (e.g., changing from `ImplicitEuler` to `RungeKutta4` or swapping linear solvers) without altering the governing physical models.
-*   **Builder / Factory Pattern (`simulation.hpp`)**: Encapsulates the complex instantiation and wiring of the numerical object graph (Grid ➔ Discretizer ➔ Linearizer ➔ Solver) to ensure a clean, reproducible setup phase for any physics module.
+*   **Builder / Factory Pattern (`main.cpp`)**: Encapsulates the complex instantiation and wiring of the numerical object graph (Grid ➔ Discretizer ➔ Linearizer ➔ Solver) to ensure a clean, reproducible setup phase for any physics module.
 *   **Facade Pattern (`axcnt_cpp` bindings)**: Provides a streamlined, high-level Python interface that masks the complexity of the underlying C++ simulation engine, effectively forming the "Analytical Bridge" for researchers.
 *   **Template Method & Interface-Driven Design (`top` namespace)**: Core contracts like `IModel`, `IState`, and `ISolver` define the strict skeleton of a simulation lifecycle, ensuring all distinct physics modules behave polymorphically and predictably.
 

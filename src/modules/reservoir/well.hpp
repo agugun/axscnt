@@ -20,7 +20,7 @@ public:
     IWell(int i_v, int j_v, int kmin, int kmax, double q, bool inj)
         : i(i_v), j(j_v), k_min(kmin), k_max(kmax), q_total(q), is_injector(inj) {}
     
-    virtual double get_q_water(const top::IState& state) const = 0;
+    virtual double get_q_water(const top::IState& st) const = 0;
 };
 
 /**
@@ -35,7 +35,7 @@ public:
     ConstantRateWell(int i_v, int j_v, int kmin, int kmax, double q, double scale, IndexFunc idx)
         : IWell(i_v, j_v, kmin, kmax, q, false), scale_factor(scale), get_idx(idx) {}
 
-    void assemble_terms(const IState& state, SparseMatrix& J, Vector& R) const override {
+    void assemble_terms(const IState& st, SparseMatrix& J, Vector& R) const override {
         int num_layers = k_max - k_min + 1;
         double q_scaled = (q_total * scale_factor) / num_layers;
 
@@ -45,7 +45,7 @@ public:
         }
     }
 
-    double get_q_water(const top::IState& state) const override { return 0.0; }
+    double get_q_water(const top::IState& st) const override { return 0.0; }
 };
 
 /**
@@ -65,13 +65,13 @@ public:
     DualPhaseWell(int i_v, int j_v, double q, bool inj, RelPermFunc rp, IndexFunc idx, SwFunc sw_f, double mw, double mo)
         : IWell(i_v, j_v, 0, 0, q, inj), get_rel_perm(rp), get_idx(idx), get_sw(sw_f), mu_w(mw), mu_o(mo) {}
 
-    void assemble_terms(const IState& state, SparseMatrix& J, Vector& R) const override {}
+    void assemble_terms(const IState& st, SparseMatrix& J, Vector& R) const override {}
     
-    double get_q_water(const top::IState& state) const override {
+    double get_q_water(const top::IState& st) const override {
         if (is_injector) return q_total;
         
         double krw, kro;
-        get_rel_perm(get_sw(state, i, j), krw, kro);
+        get_rel_perm(get_sw(st, i, j), krw, kro);
         double fw = (krw / mu_w) / ((krw / mu_w) + (kro / mu_o));
         return q_total * fw;
     }
@@ -85,7 +85,7 @@ public:
     ReservoirWellDual2D(int i_v, int j_v, double q, bool inj, RelPermFunc rp, IndexFunc idx, SwFunc sw_f, double mw, double mo)
         : DualPhaseWell(i_v, j_v, q, inj, rp, idx, sw_f, mw, mo) {}
 
-    void assemble_terms(const IState& state, SparseMatrix& J, Vector& R) const override {
+    void assemble_terms(const IState& st, SparseMatrix& J, Vector& R) const override {
         int c = get_idx(i, j);
         int r_w = 2 * c;
         int r_o = 2 * c + 1;
@@ -94,7 +94,7 @@ public:
             R[r_w] -= q_total; // Inject water
         } else {
             double krw, kro;
-            double sw_val = get_sw(state, i, j);
+            double sw_val = get_sw(st, i, j);
             get_rel_perm(sw_val, krw, kro);
             double lam_w = krw / mu_w;
             double lam_o = kro / mu_o;
@@ -138,7 +138,7 @@ public:
     ReservoirWellBlackOil2D(int i_v, int j_v, double q, bool inj, RelPerm3Func rp, IndexFunc idx, VarFunc var_f, double mw, double mo, double mg)
         : IWell(i_v, j_v, 0, 0, q, inj), get_rel_perm(rp), get_idx(idx), get_vars(var_f), mu_w(mw), mu_o(mo), mu_g(mg) {}
 
-    void assemble_terms(const IState& state, SparseMatrix& J, Vector& R) const override {
+    void assemble_terms(const IState& st, SparseMatrix& J, Vector& R) const override {
         int c = get_idx(i, j);
         int r_p = 3 * c;
         int r_sw = 3 * c + 1;
@@ -148,7 +148,7 @@ public:
             R[r_p] -= q_total;
         } else {
             double p, sw, sg;
-            get_vars(state, i, j, p, sw, sg);
+            get_vars(st, i, j, p, sw, sg);
             double krw, kro, krg;
             get_rel_perm(sw, sg, krw, kro, krg);
             
@@ -161,7 +161,7 @@ public:
         }
     }
     
-    double get_q_water(const top::IState& state) const override { return is_injector ? q_total : 0.0; }
+    double get_q_water(const top::IState& st) const override { return is_injector ? q_total : 0.0; }
 };
 
 /**
@@ -181,7 +181,7 @@ public:
     ReservoirWellBlackOil3D(int i_v, int j_v, int kmin, int kmax, double q, bool inj, RelPerm3Func rp, IndexFunc idx, VarFunc var_f, double mw, double mo, double mg)
         : IWell(i_v, j_v, kmin, kmax, q, inj), get_rel_perm(rp), get_idx(idx), get_vars(var_f), mu_w(mw), mu_o(mo), mu_g(mg) {}
 
-    void assemble_terms(const IState& state, SparseMatrix& J, Vector& R) const override {
+    void assemble_terms(const IState& st, SparseMatrix& J, Vector& R) const override {
         int num_layers = k_max - k_min + 1;
         double q_layer = q_total / num_layers;
 
@@ -195,7 +195,7 @@ public:
                 R[r_p] -= q_layer;
             } else {
                 double p, sw, sg;
-                get_vars(state, i, j, k, p, sw, sg);
+                get_vars(st, i, j, k, p, sw, sg);
                 double krw, kro, krg;
                 get_rel_perm(sw, sg, krw, kro, krg);
                 
@@ -209,7 +209,7 @@ public:
         }
     }
     
-    double get_q_water(const top::IState& state) const override { return is_injector ? q_total : 0.0; }
+    double get_q_water(const top::IState& st) const override { return is_injector ? q_total : 0.0; }
 };
 
 } // namespace mod

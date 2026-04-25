@@ -18,20 +18,24 @@ private:
     int max_iter;
     double tolerance;
     bool verbose;
+    std::vector<std::shared_ptr<ISourceSink>> sources;
 
 public:
     NewtonRaphson(double tol = 1e-4, int max_it = 12, bool verb = true)
         : max_iter(max_it), tolerance(tol), verbose(verb) {}
 
-    std::unique_ptr<IState> solve_timestep(
-        const IState& state_n, double dt, 
-        const IGrid& grid, const IModel& model, const IDiscretizer& discretizer,
-        const ITimeIntegrator& timer, ISolver& solver, const IParallelManager& pm,
-        const std::vector<std::shared_ptr<ISourceSink>>& sources) override 
+    void set_sources(const std::vector<std::shared_ptr<ISourceSink>>& src) override {
+        sources = src;
+    }
+
+    std::unique_ptr<IState> resolve(
+        const IState& st_n, double dt, 
+        const IGrid& grd, const IModel& mdl, const IDiscretizer& discretizer,
+        const ITimeIntegrator& timer, ISolver& solver, const IParallelManager& pm) override 
     {
-        auto state_guess = state_n.clone();
+        auto st_guess = st_n.clone();
         bool converged = false;
-        size_t n_cells = grid.get_total_cells();
+        size_t n_cells = grd.get_total_cells();
 
         // SparseMatrix initialization logic
         SparseMatrix J(n_cells, n_cells);
@@ -39,26 +43,26 @@ public:
 
         for (int iter = 0; iter < max_iter; ++iter) {
             // 1. Parallel Sync (Update ghost/halo cells)
-            pm.sync_ghost_cells(*state_guess);
+            pm.sync_ghost_cells(*st_guess);
 
             // Reset Residual and Jacobian triplets (Assembly logic)
             R.assign(n_cells, 0.0);
             J.clear();
             
             // 2. Spatial Assembly (Fluxes and properties)
-            discretizer.assemble_jacobian(grid, model, *state_guess, J);
-            discretizer.assemble_residual(grid, model, *state_guess, R);
+            discretizer.build_jacobian(grd, mdl, *st_guess, J);
+            discretizer.build_residual(grd, mdl, *st_guess, R);
 
             // 3. Source/Sink Assembly (Wells/Boundary Terms)
             for (auto& source : sources) {
-                source->assemble_terms(*state_guess, J, R);
+                source->assemble_terms(*st_guess, J, R);
             }
 
             // 4. External Boundary Conditions
-            discretizer.apply_boundary_conditions(grid, model, *state_guess, J, R);
+            discretizer.apply_bc(grd, mdl, *st_guess, J, R);
 
             // 5. Temporal Accumulation (du/dt)
-            timer.add_accumulation(grid, model, J, R, *state_guess, state_n, dt);
+            timer.apply_temporal(grd, mdl, J, R, *st_guess, st_n, dt);
 
             // Finalize Matrix for Solve
             J.compress();
@@ -82,14 +86,14 @@ public:
             Vector delta_x = solver.solve(J, neg_R);
 
             // 8. Safely Update State
-            state_guess->apply_update(delta_x);
+            st_guess->update(delta_x);
         }
 
         if (!converged && verbose) {
             std::cerr << "    [NewtonRaphson] Warning: Did not converge within " << max_iter << " iterations." << std::endl;
         }
 
-        return state_guess;
+        return st_guess;
     }
 };
 
@@ -97,34 +101,40 @@ public:
  * @brief Explicit Linearizer for non-iterative steps (Explicit schemes).
  */
 class ExplicitLinearizer : public ILinearizer {
+private:
+    std::vector<std::shared_ptr<ISourceSink>> sources;
+
 public:
-    std::unique_ptr<IState> solve_timestep(
-        const IState& state_n, double dt, 
-        const IGrid& grid, const IModel& model, const IDiscretizer& discretizer,
-        const ITimeIntegrator& timer, ISolver& solver, const IParallelManager& pm,
-        const std::vector<std::shared_ptr<ISourceSink>>& sources) override 
+    void set_sources(const std::vector<std::shared_ptr<ISourceSink>>& src) override {
+        sources = src;
+    }
+
+    std::unique_ptr<IState> resolve(
+        const IState& st_n, double dt, 
+        const IGrid& grd, const IModel& mdl, const IDiscretizer& discretizer,
+        const ITimeIntegrator& timer, ISolver& solver, const IParallelManager& pm) override 
     {
-        auto state_guess = state_n.clone();
-        size_t n_cells = grid.get_total_cells();
+        auto st_guess = st_n.clone();
+        size_t n_cells = grd.get_total_cells();
 
         Vector R(n_cells, 0.0);
         
         // 1. Parallel Sync
-        pm.sync_ghost_cells(*state_guess);
+        pm.sync_ghost_cells(*st_guess);
 
         // 2. Spatial Assembly (Fluxes only, no Jacobian needed for Pure Explicit)
-        discretizer.assemble_residual(grid, model, state_n, R);
+        discretizer.build_residual(grd, mdl, st_n, R);
 
         // 3. Source/Sink Assembly 
         SparseMatrix J_dummy(0,0); // Dummy for explicit
         for (auto& source : sources) {
-            source->assemble_terms(state_n, J_dummy, R);
+            source->assemble_terms(st_n, J_dummy, R);
         }
 
-        // 4. Update state directly: state_n+1 = state_n + delta (where R already includes dt and storage effects)
-        state_guess->apply_update(R);
+        // 4. Update state directly: st_n+1 = st_n + delta (where R already includes dt and storage effects)
+        st_guess->update(R);
 
-        return state_guess;
+        return st_guess;
     }
 };
 

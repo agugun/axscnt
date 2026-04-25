@@ -4,9 +4,8 @@
 #include "lib/fem.hpp"
 #include <vector>
 
-namespace mod::fluid {
+namespace mod {
 using namespace top;
-using namespace num::fem;
 
 /**
  * @brief 2D Incompressible Fluid Model (Stokes / Low-Re Navier-Stokes).
@@ -31,8 +30,8 @@ public:
 
     double get_tolerance() const override { return 1e-6; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
-        // Steady state or semi-implicit: return zero weights for pressure and 
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
+        // Steady st or semi-implicit: return zero weights for pressure and 
         // identity-like weights for momentum if transient is needed.
         // For Stokes, return zero for now.
         return Vector(3 * mesh->num_nodes(), 0.0);
@@ -44,8 +43,8 @@ public:
  */
 class FluidDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& m = static_cast<const FluidModel&>(model);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& m = static_cast<const FluidModel&>(mdl);
         size_t n = m.mesh->num_nodes();
         
         if (J.rows != 3 * n) J = SparseMatrix(3 * n, 3 * n);
@@ -92,9 +91,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& m = static_cast<const FluidModel&>(model);
-        const auto& s = static_cast<const FluidState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& m = static_cast<const FluidModel&>(mdl);
+        const auto& s = static_cast<const FluidState&>(st);
         size_t n = m.mesh->num_nodes();
 
         std::vector<bool> is_bc_u(n, false);
@@ -132,9 +131,9 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
-        const auto& m = static_cast<const FluidModel&>(model);
-        const auto& s = static_cast<const FluidState&>(state);
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
+        const auto& m = static_cast<const FluidModel&>(mdl);
+        const auto& s = static_cast<const FluidState&>(st);
         size_t n = m.mesh->num_nodes();
 
         for (size_t i = 0; i < m.velocity_bc_nodes.size(); ++i) {
@@ -150,4 +149,4 @@ public:
     }
 };
 
-} // namespace mod::fluid
+} // namespace mod

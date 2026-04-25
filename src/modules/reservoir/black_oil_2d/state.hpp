@@ -26,7 +26,7 @@ public:
         }
     }
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         for (size_t i = 0; i < variables.size(); i += 3) {
             variables[i]     += delta[i];
             variables[i + 1] += delta[i + 1];

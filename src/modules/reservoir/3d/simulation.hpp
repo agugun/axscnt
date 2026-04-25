@@ -1,6 +1,6 @@
 #include "modules/reservoir/well.hpp"
 #pragma once
-#include "lib/simulation_engine.hpp"
+#include "lib/simulation.hpp"
 #include "lib/linearizers.hpp"
 #include "lib/engine_infra.hpp"
 #include "lib/discretization.hpp"
@@ -17,7 +17,7 @@ class Reservoir3DImplicitSimulation {
 public:
     struct BuildResult {
         std::unique_ptr<top::SimulationEngine> engine;
-        std::unique_ptr<top::IState> initial_state;
+        std::unique_ptr<top::IState> st_init;
         std::shared_ptr<utl::StandardLogger> logger;
     };
 
@@ -36,7 +36,7 @@ public:
         
         // 1. Grid and State
         auto spatial = std::make_shared<Spatial3D>(nx, ny, nz, dx, dy, dz);
-        auto state = std::make_unique<Reservoir3DState>(spatial, config.get("p_initial", 3000.0));
+        auto st = std::make_unique<Reservoir3DState>(spatial, config.get("p_initial", 3000.0));
         
         // 2. Physics Model and Discretization
         auto cond = num::discretization::pressure_cond_3d(nx, ny, nz, dx, dy, dz, k, area);
@@ -56,7 +56,7 @@ public:
             (int)nx-1, (int)ny-1, (int)nz-1, (int)nz-1, std::abs(config.get("q_injector", 500.0)), 1.0, idx_func
         ));
 
-        auto model = std::make_shared<Reservoir3DModel>(cond, storage, wells);
+        auto mdl = std::make_shared<Reservoir3DModel>(cond, storage, wells);
         auto discretizer = std::make_shared<Reservoir3DDiscretizer>();
         
         // 3. Engine Components
@@ -69,7 +69,7 @@ public:
         
         auto pm = std::make_shared<top::SerialParallelManager>();
 
-        auto engine = std::make_unique<top::SimulationEngine>(spatial, model, discretizer, timer, linearizer, solver, pm);
+        auto engine = std::make_unique<top::SimulationEngine>(spatial, mdl, discretizer, timer, linearizer, solver, pm);
 
         // 4. Logger / Observer setup
         auto logger = std::make_shared<utl::StandardLogger>(config);
@@ -80,7 +80,7 @@ public:
         
         engine->add_observer(logger);
 
-        return { std::move(engine), std::move(state), logger };
+        return { std::move(engine), std::move(st), logger };
     }
 };
 

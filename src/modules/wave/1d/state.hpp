@@ -4,7 +4,6 @@
 
 namespace mod {
 using namespace top;
-namespace wave {
 
 class Wave1DState : public IState {
 public:
@@ -15,7 +14,7 @@ public:
     Wave1DState(std::shared_ptr<Spatial1D> s, double initial_displacement = 0.0) 
         : u(s->nx, initial_displacement), v(s->nx, 0.0), spatial(s) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         size_t n = u.size();
         for (size_t i = 0; i < n; ++i) {
             u[i] += delta[i];
@@ -41,5 +40,4 @@ public:
     }
 };
 
-} // namespace wave
 } // namespace mod

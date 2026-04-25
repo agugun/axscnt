@@ -4,7 +4,6 @@
 
 namespace mod {
 using namespace top;
-namespace pressure {
 
 class Pressure1DState : public IState {
 public:
@@ -14,7 +13,7 @@ public:
     Pressure1DState(std::shared_ptr<Spatial1D> s, double initial_press) 
         : pressures(s->nx, initial_press), spatial(s) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         for (size_t i = 0; i < pressures.size(); ++i) {
             pressures[i] += delta[i];
         }
@@ -31,5 +30,4 @@ public:
     }
 };
 
-} // namespace pressure
 } // namespace mod

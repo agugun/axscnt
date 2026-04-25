@@ -13,7 +13,7 @@ public:
 
     MBAState(double initial_pressure) : pressure(initial_pressure) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         pressure += delta[0];
     }
 

@@ -1,6 +1,6 @@
 #include "modules/reservoir/well.hpp"
 #pragma once
-#include "lib/simulation_engine.hpp"
+#include "lib/simulation.hpp"
 #include "lib/linearizers.hpp"
 #include "lib/engine_infra.hpp"
 #include "lib/discretization.hpp"
@@ -17,7 +17,7 @@ class OilGas2DImplicitSimulation {
 public:
     struct BuildResult {
         std::unique_ptr<top::SimulationEngine> engine;
-        std::unique_ptr<top::IState> initial_state;
+        std::unique_ptr<top::IState> st_init;
         std::shared_ptr<utl::StandardLogger> logger;
     };
 
@@ -32,7 +32,7 @@ public:
         
         // 1. Grid and State
         auto spatial = std::make_shared<Spatial2D>(nx, ny, dx, dy);
-        auto state = std::make_unique<ReservoirOilGas2DState>(spatial, config.get("p_init", 2000.0), config.get("sg_init", 0.0));
+        auto st = std::make_unique<ReservoirOilGas2DState>(spatial, config.get("p_init", 2000.0), config.get("sg_init", 0.0));
         
         // 2. Physics Model and Discretization
         auto cond = num::discretization::pressure_cond_2d(nx, ny, dx, dy, k, 1.0, area); // mu=1 stub
@@ -48,7 +48,7 @@ public:
             [nx, ny](int i, int j, int k) { return j * (int)nx + i; }
         ));
 
-        auto model = std::make_shared<OilGas2DModel>(
+        auto mdl = std::make_shared<OilGas2DModel>(
             cond, pv, config.get("mu_o", 2.0), config.get("mu_g", 0.02),
             config.get("bo", 1.2), 14.7, 1.0, wells
         );
@@ -62,7 +62,7 @@ public:
         
         auto pm = std::make_shared<top::SerialParallelManager>();
 
-        auto engine = std::make_unique<top::SimulationEngine>(spatial, model, discretizer, timer, linearizer, solver, pm);
+        auto engine = std::make_unique<top::SimulationEngine>(spatial, mdl, discretizer, timer, linearizer, solver, pm);
 
         // 4. Logger / Observer setup
         auto logger = std::make_shared<utl::StandardLogger>(config);
@@ -82,7 +82,7 @@ public:
         
         engine->add_observer(logger);
 
-        return { std::move(engine), std::move(state), logger };
+        return { std::move(engine), std::move(st), logger };
     }
 };
 

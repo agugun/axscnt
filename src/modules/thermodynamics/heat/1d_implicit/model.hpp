@@ -6,7 +6,6 @@
  
 namespace mod {
 using namespace top;
-namespace heat {
 
 /**
  * @brief 1D Heat Physical Model (Properties).
@@ -22,7 +21,7 @@ public:
 
     double get_tolerance() const override { return 1e-6; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
         return storage_coeff;
     }
 };
@@ -32,9 +31,9 @@ public:
  */
 class Heat1DDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& h_model = static_cast<const Heat1DModel&>(model);
-        const auto& h_state = static_cast<const Heat1DImplicitState&>(state);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& h_model = static_cast<const Heat1DModel&>(mdl);
+        const auto& h_state = static_cast<const Heat1DImplicitState&>(st);
         size_t n = h_state.temperatures.size();
 
         // Standard 1D Sparse Assembly
@@ -53,9 +52,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& h_model = static_cast<const Heat1DModel&>(model);
-        const auto& h_state = static_cast<const Heat1DImplicitState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& h_model = static_cast<const Heat1DModel&>(mdl);
+        const auto& h_state = static_cast<const Heat1DImplicitState&>(st);
         size_t n = h_state.temperatures.size();
 
         #pragma omp parallel for
@@ -66,9 +65,9 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
-        const auto& h_model = static_cast<const Heat1DModel&>(model);
-        const auto& h_state = static_cast<const Heat1DImplicitState&>(state);
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
+        const auto& h_model = static_cast<const Heat1DModel&>(mdl);
+        const auto& h_state = static_cast<const Heat1DImplicitState&>(st);
         size_t n = R.size();
 
         // Dirichlet Boundary Conditions
@@ -81,5 +80,4 @@ public:
     }
 };
 
-} // namespace heat
 } // namespace mod

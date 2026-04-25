@@ -7,8 +7,8 @@
 #include "lib/integrators.hpp"
 #include "lib/solvers.hpp"
 #include "modules/reservoir/reservoir_integrators.hpp"
-#include "modules/reservoir/dual_2d/model.hpp"
-#include "modules/reservoir/dual_2d/state.hpp"
+#include "modules/reservoir/dual_2d/mdl.hpp"
+#include "modules/reservoir/dual_2d/st.hpp"
 
 using namespace num;
 using namespace mod;
@@ -28,14 +28,14 @@ public:
  */
 class DecayModel : public IModel {
 public:
-    Vector evaluate_rhs(const IState& state) const override {
-        const auto& s = dynamic_cast<const SimpleState&>(state);
+    Vector evaluate_rhs(const IState& st) const override {
+        const auto& s = dynamic_cast<const SimpleState&>(st);
         double y = s.val[0];
         return { -y };
     }
     
-    Vector build_residual(const IState& state, const IState& state_old, double dt) const override {
-        const auto& s = dynamic_cast<const SimpleState&>(state);
+    Vector build_residual(const IState& st, const IState& state_old, double dt) const override {
+        const auto& s = dynamic_cast<const SimpleState&>(st);
         const auto& s_old = dynamic_cast<const SimpleState&>(state_old);
         double y = s.val[0];
         double y_old = s_old.val[0];
@@ -43,39 +43,39 @@ public:
         return { (y - y_old) / dt + y };
     }
     
-    Matrix build_jacobian(const IState& state, double dt) const override {
+    Matrix build_jacobian(const IState& st, double dt) const override {
         // dR/dy = 1/dt + 1
         return { { 1.0 / dt + 1.0 } };
     }
 
-    Vector apply_jacobian(const IState& state, const Vector& v, double dt) const override {
+    Vector apply_jacobian(const IState& st, const Vector& v, double dt) const override {
         // J * v = (1/dt + 1) * v
         return { (1.0 / dt + 1.0) * v[0] };
     }
 };
 
-void run_benchmark(const string& name, ITimeIntegrator& integ, IModel& model, ISolver* solver, double y0, double dt, int steps) {
-    SimpleState state(y0);
+void run_benchmark(const string& name, ITimeIntegrator& integ, IModel& mdl, ISolver* solver, double y0, double dt, int steps) {
+    SimpleState st(y0);
     
     auto start = chrono::high_resolution_clock::now();
     for (int i = 0; i < steps; ++i) {
-        integ.step(model, state, solver, dt);
+        integ.step(mdl, st, solver, dt);
     }
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double, micro> duration = end - start;
 
     double analytical = y0 * exp(-dt * steps);
-    double error = abs(state.val[0] - analytical);
+    double error = abs(st.val[0] - analytical);
 
     cout << left << setw(25) << name 
-         << " | Final y: " << fixed << setprecision(6) << state.val[0] 
+         << " | Final y: " << fixed << setprecision(6) << st.val[0] 
          << " | Error: " << scientific << setprecision(2) << error 
          << " | Time: " << fixed << setprecision(2) << duration.count() << " us" << endl;
 }
 
 /**
  * @brief Verification Test for Reservoir IMPES Integrator
- * Simulates a simple 5x5 grid with one injector and one producer.
+ * Simulates a simple 5x5 grd with one injector and one producer.
  */
 void test_reservoir_impes() {
     cout << "\n--- Testing Reservoir IMPES Integrator (2D Dual Phase) ---" << endl;
@@ -86,7 +86,7 @@ void test_reservoir_impes() {
     double init_p = 3000.0;
     double init_sw = 0.2;
 
-    auto state = make_unique<ReservoirDualPhase2DState>(spatial, init_p, init_sw);
+    auto st = make_unique<ReservoirDualPhase2DState>(spatial, init_p, init_sw);
     
     // Lambdas for Well interface
     auto rp_func = [](double sw, double& krw, double& kro) -> void {
@@ -106,7 +106,7 @@ void test_reservoir_impes() {
     auto prod = make_shared<mod::ReservoirWellDual2D>(4, 4, -300.0, false, rp_func, idx_func, sw_func, 1.0, 2.0);
     vector<shared_ptr<mod::ISourceSink>> sources = { inj, prod };
 
-    ReservoirDual2DModel model(100.0, 0.2, 1.0, 2.0, 50.0, sources);
+    ReservoirDual2DModel mdl(100.0, 0.2, 1.0, 2.0, 50.0, sources);
     
     ConjugateGradientSolver cg_solver;
     ReservoirIMPESIntegrator<ReservoirDualPhase2DState, ReservoirDual2DModel> impes;
@@ -119,15 +119,15 @@ void test_reservoir_impes() {
 
     for (int i = 1; i <= steps; ++i) {
         auto start = chrono::high_resolution_clock::now();
-        impes.step(model, *state, &cg_solver, dt);
+        impes.step(mdl, *st, &cg_solver, dt);
         auto end = chrono::high_resolution_clock::now();
         chrono::duration<double, micro> duration = end - start;
 
         double avg_p = 0, avg_s = 0;
-        for(auto p : state->pressures) avg_p += p;
-        for(auto s : state->water_saturations) avg_s += s;
-        avg_p /= state->pressures.size();
-        avg_s /= state->water_saturations.size();
+        for(auto p : st->pressures) avg_p += p;
+        for(auto s : st->water_saturations) avg_s += s;
+        avg_p /= st->pressures.size();
+        avg_s /= st->water_saturations.size();
 
         cout << left << setw(10) << i 
              << " | " << scientific << setprecision(2) << setw(12) << avg_p 
@@ -137,7 +137,7 @@ void test_reservoir_impes() {
 }
 
 int main() {
-    DecayModel model;
+    DecayModel mdl;
     ConjugateGradientSolver cg_solver;
     
     double y0 = 1.0;
@@ -149,16 +149,16 @@ int main() {
     cout << string(75, '-') << endl;
 
     ForwardEulerIntegrator fe;
-    run_benchmark("Forward Euler", fe, model, nullptr, y0, dt, steps);
+    run_benchmark("Forward Euler", fe, mdl, nullptr, y0, dt, steps);
 
     RungeKutta4Integrator rk4;
-    run_benchmark("Runge-Kutta 4", rk4, model, nullptr, y0, dt, steps);
+    run_benchmark("Runge-Kutta 4", rk4, mdl, nullptr, y0, dt, steps);
 
     ImplicitEulerIntegrator ie;
-    run_benchmark("Implicit Euler (CG)", ie, model, &cg_solver, y0, dt, steps);
+    run_benchmark("Implicit Euler (CG)", ie, mdl, &cg_solver, y0, dt, steps);
 
     FullyImplicitIntegrator fi;
-    run_benchmark("Fully Implicit (CG)", fi, model, &cg_solver, y0, dt, steps);
+    run_benchmark("Fully Implicit (CG)", fi, mdl, &cg_solver, y0, dt, steps);
 
     // Domain Specific Integration
     test_reservoir_impes();

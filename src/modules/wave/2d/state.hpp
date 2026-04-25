@@ -14,7 +14,7 @@ public:
     Wave2DState(std::shared_ptr<Spatial2D> s) 
         : u(s->total_size(), 0.0), v(s->total_size(), 0.0), spatial(s) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         size_t n = spatial->total_size();
         for (size_t i = 0; i < n; ++i) {
             u[i] += delta[i];

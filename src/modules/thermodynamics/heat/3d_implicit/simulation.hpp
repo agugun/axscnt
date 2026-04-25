@@ -1,5 +1,5 @@
 #pragma once
-#include "lib/simulation_engine.hpp"
+#include "lib/simulation.hpp"
 #include "lib/linearizers.hpp"
 #include "lib/engine_infra.hpp"
 #include "lib/discretization.hpp"
@@ -16,7 +16,7 @@ class Heat3DImplicitSimulation {
 public:
     struct BuildResult {
         std::unique_ptr<top::SimulationEngine> engine;
-        std::unique_ptr<top::IState> initial_state;
+        std::unique_ptr<top::IState> st_init;
         std::shared_ptr<utl::StandardLogger> logger;
     };
 
@@ -34,7 +34,7 @@ public:
         
         // 1. Grid and State
         auto spatial = std::make_shared<Spatial3D>(nx, ny, nz, dx, dy, dz);
-        auto state = std::make_unique<Heat3DImplicitState>(spatial, 0.0);
+        auto st = std::make_unique<Heat3DImplicitState>(spatial, 0.0);
         
         // Initial condition: Hot sphere in center
         for (size_t k_idx = 0; k_idx < nz; ++k_idx) {
@@ -44,7 +44,7 @@ public:
                     double y = j * dy;
                     double z = k_idx * dz;
                     double dist_sq = std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2) + std::pow(z - 0.5, 2);
-                    state->temperatures[spatial->idx(i, j, k_idx)] = std::exp(-dist_sq / 0.05);
+                    st->temperatures[spatial->idx(i, j, k_idx)] = std::exp(-dist_sq / 0.05);
                 }
             }
         }
@@ -53,7 +53,7 @@ public:
         auto cond = num::discretization::heat_cond_3d(nx, ny, nz, dx, dy, dz, k);
         Vector storage = num::discretization::heat_storage(nx * ny * nz, dx * dy * dz * area, rho, cp);
         
-        auto model = std::make_shared<Heat3DModel>(
+        auto mdl = std::make_shared<Heat3DModel>(
             cond, storage, 
             config.get("t_front", 0.0), config.get("t_back", 0.0),
             config.get("t_top", 0.0), config.get("t_bottom", 0.0),
@@ -71,7 +71,7 @@ public:
         
         auto pm = std::make_shared<top::SerialParallelManager>();
 
-        auto engine = std::make_unique<top::SimulationEngine>(spatial, model, discretizer, timer, linearizer, solver, pm);
+        auto engine = std::make_unique<top::SimulationEngine>(spatial, mdl, discretizer, timer, linearizer, solver, pm);
 
         // 4. Logger / Observer setup
         auto logger = std::make_shared<utl::StandardLogger>(config);
@@ -82,7 +82,7 @@ public:
         
         engine->add_observer(logger);
 
-        return { std::move(engine), std::move(state), logger };
+        return { std::move(engine), std::move(st), logger };
     }
 };
 

@@ -2,7 +2,7 @@
 #include "lib/spatial.hpp"
 #include "lib/interfaces.hpp"
 
-namespace mod::heat {
+namespace mod {
 
 class Heat1DExplicitState : public top::IState {
 public:
@@ -12,7 +12,7 @@ public:
     Heat1DExplicitState(top::Spatial1D s, double initial_temp) 
         : spatial(s), temperatures(s.nx, initial_temp) {}
 
-    void apply_update(const std::vector<double>& delta) override {
+    void update(const std::vector<double>& delta) override {
         for (size_t i = 0; i < temperatures.size(); ++i) {
             temperatures[i] += delta[i];
         }
@@ -29,4 +29,4 @@ public:
     }
 };
 
-} // namespace mod::heat
+} // namespace mod

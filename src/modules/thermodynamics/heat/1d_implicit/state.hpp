@@ -4,7 +4,6 @@
 
 namespace mod {
 using namespace top;
-namespace heat {
 
 class Heat1DImplicitState : public HeatState {
 public:
@@ -20,5 +19,4 @@ public:
     }
 };
 
-} // namespace heat
 } // namespace mod

@@ -1,22 +1,22 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "modules/thermodynamics/heat/1d_implicit/model.hpp"
-#include "modules/thermodynamics/heat/1d_implicit/state.hpp"
-#include "modules/thermodynamics/heat/2d_implicit/model.hpp"
-#include "modules/thermodynamics/heat/2d_implicit/state.hpp"
-#include "modules/pressure/1d/model.hpp"
-#include "modules/pressure/1d/state.hpp"
-#include "modules/wave/1d/model.hpp"
-#include "modules/wave/1d/state.hpp"
-#include "modules/fluids/burgers/model.hpp"
-#include "modules/fluids/burgers/state.hpp"
-#include "modules/fluids/fluid_dynamics/model.hpp"
-#include "modules/fluids/fluid_dynamics/state.hpp"
-#include "modules/reservoir/1d/model.hpp"
-#include "modules/reservoir/1d/state.hpp"
-#include "modules/reservoir/2d/model.hpp"
-#include "modules/reservoir/2d/state.hpp"
-#include "lib/simulation_engine.hpp"
+#include "modules/thermodynamics/heat/1d_implicit/mdl.hpp"
+#include "modules/thermodynamics/heat/1d_implicit/st.hpp"
+#include "modules/thermodynamics/heat/2d_implicit/mdl.hpp"
+#include "modules/thermodynamics/heat/2d_implicit/st.hpp"
+#include "modules/pressure/1d/mdl.hpp"
+#include "modules/pressure/1d/st.hpp"
+#include "modules/wave/1d/mdl.hpp"
+#include "modules/wave/1d/st.hpp"
+#include "modules/fluids/burgers/mdl.hpp"
+#include "modules/fluids/burgers/st.hpp"
+#include "modules/fluids/fluid_dynamics/mdl.hpp"
+#include "modules/fluids/fluid_dynamics/st.hpp"
+#include "modules/reservoir/1d/mdl.hpp"
+#include "modules/reservoir/1d/st.hpp"
+#include "modules/reservoir/2d/mdl.hpp"
+#include "modules/reservoir/2d/st.hpp"
+#include "lib/simulation.hpp"
 #include "lib/integrators.hpp"
 #include "lib/solvers.hpp"
 #include "lib/linearizers.hpp"
@@ -33,36 +33,40 @@ using namespace top;
  */
 class HeatSimulationWrapper {
 private:
-    std::shared_ptr<heat::Heat1DModel> model;
-    std::shared_ptr<heat::Heat1DImplicitState> state;
+    std::shared_ptr<Heat1DModel> mdl;
+    std::shared_ptr<Heat1DImplicitState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     HeatSimulationWrapper(std::shared_ptr<num::discretization::Conductance1D> cond, const Vector& storage, double TL, double TR) {
         int nx = (int)storage.size();
         auto spatial = std::make_shared<Spatial1D>(nx, 1.0);
-        state = std::make_shared<heat::Heat1DImplicitState>(spatial, 0.0);
-        model = std::make_shared<heat::Heat1DModel>(cond, storage, TL, TR);
+        st = std::make_shared<Heat1DImplicitState>(spatial, 0.0);
+        mdl = std::make_shared<Heat1DModel>(cond, storage, TL, TR);
         
-        auto discretizer = std::make_shared<heat::Heat1DDiscretizer>();
+        auto discretizer = std::make_shared<Heat1DDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<LinearTridiagonalSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_initial_condition(const std::vector<double>& ic) {
-        state->temperatures = ic;
+        st->temperatures = ic;
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<Heat1DImplicitState>(static_cast<Heat1DImplicitState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 
@@ -71,39 +75,43 @@ public:
  */
 class Heat2DSimulationWrapper {
 private:
-    std::shared_ptr<heat::Heat2DModel> model;
-    std::shared_ptr<heat::Heat2DImplicitState> state;
+    std::shared_ptr<Heat2DModel> mdl;
+    std::shared_ptr<Heat2DImplicitState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     Heat2DSimulationWrapper(int nx, int ny, double Lx, double Ly, double alpha) {
         auto spatial = std::make_shared<Spatial2D>(nx, ny, Lx, Ly);
-        state = std::make_shared<heat::Heat2DImplicitState>(spatial, 0.0);
+        st = std::make_shared<Heat2DImplicitState>(spatial, 0.0);
         double dx = Lx / (nx - 1);
         double dy = Ly / (ny - 1);
         auto cond = num::discretization::heat_cond_2d(nx, ny, dx, dy, alpha, 1.0);
         Vector storage(nx * ny, 1.0);
-        model = std::make_shared<heat::Heat2DModel>(cond, storage, 0.0, 0.0, 0.0, 0.0);
+        mdl = std::make_shared<Heat2DModel>(cond, storage, 0.0, 0.0, 0.0, 0.0);
         
-        auto discretizer = std::make_shared<heat::Heat2DDiscretizer>();
+        auto discretizer = std::make_shared<Heat2DDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<BiCGSTABSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_initial_condition(const std::vector<double>& ic) {
-        state->temperatures = ic;
+        st->temperatures = ic;
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<Heat2DImplicitState>(static_cast<Heat2DImplicitState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 
@@ -112,36 +120,40 @@ public:
  */
 class PressureSimulationWrapper {
 private:
-    std::shared_ptr<pressure::Pressure1DModel> model;
-    std::shared_ptr<pressure::Pressure1DState> state;
+    std::shared_ptr<Pressure1DModel> mdl;
+    std::shared_ptr<Pressure1DState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     PressureSimulationWrapper(std::shared_ptr<num::discretization::Conductance1D> cond, const Vector& storage, double PL, double PR) {
         int nx = (int)storage.size();
         auto spatial = std::make_shared<Spatial1D>(nx, 1.0);
-        state = std::make_shared<pressure::Pressure1DState>(spatial, 0.0);
-        model = std::make_shared<pressure::Pressure1DModel>(cond, storage, PL, PR);
+        st = std::make_shared<Pressure1DState>(spatial, 0.0);
+        mdl = std::make_shared<Pressure1DModel>(cond, storage, PL, PR);
         
-        auto discretizer = std::make_shared<pressure::Pressure1DDiscretizer>();
+        auto discretizer = std::make_shared<Pressure1DDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<LinearTridiagonalSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_initial_condition(const std::vector<double>& ic) {
-        state->pressures = ic;
+        st->pressures = ic;
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<Pressure1DState>(static_cast<Pressure1DState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 
@@ -150,37 +162,41 @@ public:
  */
 class WaveSimulationWrapper {
 private:
-    std::shared_ptr<wave::Wave1DModel> model;
-    std::shared_ptr<wave::Wave1DState> state;
+    std::shared_ptr<Wave1DModel> mdl;
+    std::shared_ptr<Wave1DState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     WaveSimulationWrapper(std::shared_ptr<num::discretization::Conductance1D> cond, const Vector& storage) {
         int nx = (int)storage.size();
         auto spatial = std::make_shared<Spatial1D>(nx, 1.0);
-        state = std::make_shared<wave::Wave1DState>(spatial, 0.0);
-        model = std::make_shared<wave::Wave1DModel>(cond, storage);
+        st = std::make_shared<Wave1DState>(spatial, 0.0);
+        mdl = std::make_shared<Wave1DModel>(cond, storage);
         
-        auto discretizer = std::make_shared<wave::Wave1DDiscretizer>();
+        auto discretizer = std::make_shared<Wave1DDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<LinearTridiagonalSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_initial_condition(const std::vector<double>& u, const std::vector<double>& v) {
-        state->u = u;
-        state->v = v;
+        st->u = u;
+        st->v = v;
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<Wave1DState>(static_cast<Wave1DState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 
@@ -189,33 +205,37 @@ public:
  */
 class BurgersSimulationWrapper {
 private:
-    std::shared_ptr<burgers::BurgersModel> model;
-    std::shared_ptr<burgers::BurgersState> state;
+    std::shared_ptr<BurgersModel> mdl;
+    std::shared_ptr<BurgersState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     BurgersSimulationWrapper(double nu, double dx, const std::vector<double>& ic) {
         int nx = (int)ic.size();
         auto spatial = std::make_shared<Spatial1D>(nx, dx);
-        state = std::make_shared<burgers::BurgersState>(spatial, 0.0);
-        state->u = ic;
-        model = std::make_shared<burgers::BurgersModel>(nu, dx);
+        st = std::make_shared<BurgersState>(spatial, 0.0);
+        st->u = ic;
+        mdl = std::make_shared<BurgersModel>(nu, dx);
         
-        auto discretizer = std::make_shared<burgers::BurgersDiscretizer>();
+        auto discretizer = std::make_shared<BurgersDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<LinearTridiagonalSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 20, true);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<BurgersState>(static_cast<BurgersState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 
@@ -224,37 +244,41 @@ public:
  */
 class StokesSimulationWrapper {
 private:
-    std::shared_ptr<mod::fluid::FluidModel> model;
-    std::shared_ptr<mod::fluid::FluidState> state;
+    std::shared_ptr<FluidModel> mdl;
+    std::shared_ptr<FluidState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     StokesSimulationWrapper(int nx, int ny, double Lx, double Ly, double mu) {
         auto mesh = std::make_shared<num::fem::Mesh>();
         mesh->generate_quad_mesh(nx, ny, Lx, Ly);
-        state = std::make_shared<mod::fluid::FluidState>(mesh);
-        model = std::make_shared<mod::fluid::FluidModel>(mesh, mu, 1.0);
+        st = std::make_shared<FluidState>(mesh);
+        mdl = std::make_shared<FluidModel>(mesh, mu, 1.0);
         
-        auto discretizer = std::make_shared<mod::fluid::FluidDiscretizer>();
+        auto discretizer = std::make_shared<FluidDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<BiCGSTABSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(nullptr, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(nullptr, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_boundary_condition(int node, double u, double v) {
-        model->set_velocity_bc(node, u, v);
+        mdl->set_velocity_bc(node, u, v);
     }
 
     void solve() {
-        engine->simulate_step(1.0, *state);
+        auto next_state = engine->step(t, 1.0, *st, ++step_count);
+        st = std::shared_ptr<FluidState>(static_cast<FluidState*>(next_state.release()));
+        t += 1.0;
     }
 
-    std::vector<double> get_u() const { return state->u; }
-    std::vector<double> get_v() const { return state->v; }
-    std::vector<double> get_p() const { return state->p; }
+    std::vector<double> get_u() const { return st->u; }
+    std::vector<double> get_v() const { return st->v; }
+    std::vector<double> get_p() const { return st->p; }
 };
 
 /**
@@ -262,37 +286,41 @@ public:
  */
 class ReservoirSimulationWrapper {
 private:
-    std::shared_ptr<reservoir::Reservoir1DModel> model;
-    std::shared_ptr<reservoir::Reservoir1DState> state;
+    std::shared_ptr<Reservoir1DModel> mdl;
+    std::shared_ptr<Reservoir1DState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     ReservoirSimulationWrapper(std::shared_ptr<num::discretization::Conductance1D> cond, const Vector& storage) {
         int nx = (int)storage.size();
         auto spatial = std::make_shared<Spatial1D>(nx, 1.0);
-        state = std::make_shared<reservoir::Reservoir1DState>(spatial, 0.0);
+        st = std::make_shared<Reservoir1DState>(spatial, 0.0);
         std::vector<std::shared_ptr<ISourceSink>> wells;
-        model = std::make_shared<reservoir::Reservoir1DModel>(cond, storage, wells);
+        mdl = std::make_shared<Reservoir1DModel>(cond, storage, wells);
         
-        auto discretizer = std::make_shared<reservoir::Reservoir1DDiscretizer>();
+        auto discretizer = std::make_shared<Reservoir1DDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<LinearTridiagonalSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_initial_condition(const std::vector<double>& ic) {
-        state->pressures = ic;
+        st->pressures = ic;
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<Reservoir1DState>(static_cast<Reservoir1DState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 
@@ -301,41 +329,45 @@ public:
  */
 class Reservoir2DSimulationWrapper {
 private:
-    std::shared_ptr<reservoir::Reservoir2DModel> model;
-    std::shared_ptr<reservoir::Reservoir2DState> state;
+    std::shared_ptr<Reservoir2DModel> mdl;
+    std::shared_ptr<Reservoir2DState> st;
     std::unique_ptr<SimulationEngine> engine;
+    double t = 0.0;
+    int step_count = 0;
 
 public:
     Reservoir2DSimulationWrapper(int nx, int ny, double Lx, double Ly, double eta) {
         auto spatial = std::make_shared<Spatial2D>(nx, ny, Lx, Ly);
-        state = std::make_shared<reservoir::Reservoir2DState>(spatial, 0.0);
+        st = std::make_shared<Reservoir2DState>(spatial, 0.0);
         double dx = Lx / (nx - 1);
         double dy = Ly / (ny - 1);
         auto cond = num::discretization::reservoir_cond_2d(nx, ny, dx, dy, 100.0, 1.0, 1.0, 100.0); // Simplified
         Vector storage(nx * ny, 0.001);
 
         std::vector<std::shared_ptr<ISourceSink>> wells;
-        model = std::make_shared<reservoir::Reservoir2DModel>(cond, storage, wells);
+        mdl = std::make_shared<Reservoir2DModel>(cond, storage, wells);
         
-        auto discretizer = std::make_shared<reservoir::Reservoir2DDiscretizer>();
+        auto discretizer = std::make_shared<Reservoir2DDiscretizer>();
         auto integrator = std::make_shared<ImplicitEulerIntegrator>();
         auto solver = std::make_shared<BiCGSTABSolver>();
         auto linearizer = std::make_shared<NewtonRaphson>(1e-6, 1, false);
         auto pm = std::make_shared<SerialParallelManager>();
 
-        engine = std::make_unique<SimulationEngine>(spatial, model, discretizer, integrator, linearizer, solver, pm);
+        engine = std::make_unique<SimulationEngine>(spatial, mdl, discretizer, integrator, linearizer, solver, pm);
     }
 
     void set_initial_condition(const std::vector<double>& ic) {
-        state->pressures = ic;
+        st->pressures = ic;
     }
 
     void step(double dt) {
-        engine->simulate_step(dt, *state);
+        auto next_state = engine->step(t, dt, *st, ++step_count);
+        st = std::shared_ptr<Reservoir2DState>(static_cast<Reservoir2DState*>(next_state.release()));
+        t += dt;
     }
 
     std::vector<double> get_values() const {
-        return state->to_vector();
+        return st->to_vector();
     }
 };
 

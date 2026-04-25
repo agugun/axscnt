@@ -5,7 +5,6 @@
  
 namespace mod {
 using namespace top;
-namespace wave {
 
 /**
  * @brief 1D Wave Physical Model (Properties).
@@ -20,7 +19,7 @@ public:
 
     double get_tolerance() const override { return 1e-4; }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
         size_t n = storage_coeff.size();
         Vector weights(2 * n);
         for (size_t i = 0; i < n; ++i) {
@@ -39,9 +38,9 @@ public:
  */
 class Wave1DDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& w_model = static_cast<const Wave1DModel&>(model);
-        const auto& w_state = static_cast<const Wave1DState&>(state);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& w_model = static_cast<const Wave1DModel&>(mdl);
+        const auto& w_state = static_cast<const Wave1DState&>(st);
         size_t n = w_state.u.size();
 
         if (J.rows != 2 * (int)n) J = SparseMatrix(2 * n, 2 * n);
@@ -66,9 +65,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& w_model = static_cast<const Wave1DModel&>(model);
-        const auto& w_state = static_cast<const Wave1DState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& w_model = static_cast<const Wave1DModel&>(mdl);
+        const auto& w_state = static_cast<const Wave1DState&>(st);
         size_t n = w_state.u.size();
 
         // 1. R_u = -v
@@ -86,12 +85,12 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
-        const auto& w_state = static_cast<const Wave1DState&>(state);
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
+        const auto& w_state = static_cast<const Wave1DState&>(st);
         size_t n = w_state.u.size();
 
         // Dirichlet BCs for u (fixed displacement)
-        R[0] = w_state.u[0]; // Assuming 0 for now or set from model
+        R[0] = w_state.u[0]; // Assuming 0 for now or set from mdl
         R[n-1] = w_state.u[n-1];
         J.triplets.push_back({0, 0, 1.0});
         J.triplets.push_back({(int)n-1, (int)n-1, 1.0});
@@ -104,5 +103,4 @@ public:
     }
 };
 
-} // namespace wave
 } // namespace mod

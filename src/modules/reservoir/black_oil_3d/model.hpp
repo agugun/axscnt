@@ -35,8 +35,8 @@ public:
         krog = std::pow(std::max(0.0, std::min(1.0, soe)), 3.0);
     }
 
-    Vector get_accumulation_weights(const IGrid& grid, const IState& state) const override {
-        size_t n = grid.get_total_cells();
+    Vector get_accumulation_weights(const IGrid& grd, const IState& st) const override {
+        size_t n = grd.get_total_cells();
         return Vector(3 * n, pore_vol_per_cell);
     }
 
@@ -50,9 +50,9 @@ public:
  */
 class BlackOil3DDiscretizer : public IDiscretizer {
 public:
-    void assemble_jacobian(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J) const override {
-        const auto& m = static_cast<const BlackOil3DModel&>(model);
-        const auto& s = static_cast<const ReservoirBlackOil3DState&>(state);
+    void build_jacobian(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J) const override {
+        const auto& m = static_cast<const BlackOil3DModel&>(mdl);
+        const auto& s = static_cast<const ReservoirBlackOil3DState&>(st);
         int nx = (int)s.spatial->nx;
         int ny = (int)s.spatial->ny;
         int nz = (int)s.spatial->nz;
@@ -106,9 +106,9 @@ public:
         }
     }
 
-    void assemble_residual(const IGrid& grid, const IModel& model, const IState& state, Vector& R) const override {
-        const auto& m = static_cast<const BlackOil3DModel&>(model);
-        const auto& s = static_cast<const ReservoirBlackOil3DState&>(state);
+    void build_residual(const IGrid& grd, const IModel& mdl, const IState& st, Vector& R) const override {
+        const auto& m = static_cast<const BlackOil3DModel&>(mdl);
+        const auto& s = static_cast<const ReservoirBlackOil3DState&>(st);
         int nx = (int)s.spatial->nx;
         int ny = (int)s.spatial->ny;
         int nz = (int)s.spatial->nz;
@@ -153,7 +153,7 @@ public:
         }
     }
 
-    void apply_boundary_conditions(const IGrid& grid, const IModel& model, const IState& state, SparseMatrix& J, Vector& R) const override {
+    void apply_bc(const IGrid& grd, const IModel& mdl, const IState& st, SparseMatrix& J, Vector& R) const override {
         // No-flow is default.
     }
 };

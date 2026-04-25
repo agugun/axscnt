@@ -18,7 +18,7 @@
 #include <array>
 #include "lib/sparse.hpp"
 
-namespace num::fem {
+namespace mod {
 
 /**
  * @brief 2D Point/Node in space.
@@ -37,10 +37,12 @@ struct Element {
 /**
  * @brief Unstructured 2D Mesh.
  */
-struct Mesh {
+struct Mesh : public top::IGrid {
     std::vector<Node> nodes;
     std::vector<Element> elements;
     
+    size_t get_total_cells() const override { return nodes.size(); }
+
     static Mesh generate_quad_mesh(double L, double H, int nx, int ny) {
         Mesh mesh;
         double dx = L / (nx - 1);
@@ -151,4 +153,4 @@ public:
     }
 };
 
-} // namespace num::fem
+} // namespace mod

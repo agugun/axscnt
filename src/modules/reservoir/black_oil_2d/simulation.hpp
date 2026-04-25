@@ -1,5 +1,5 @@
 #pragma once
-#include "lib/simulation_engine.hpp"
+#include "lib/simulation.hpp"
 #include "lib/linearizers.hpp"
 #include "modules/reservoir/well.hpp"
 #include "lib/engine_infra.hpp"
@@ -17,7 +17,7 @@ class BlackOil2DImplicitSimulation {
 public:
     struct BuildResult {
         std::unique_ptr<top::SimulationEngine> engine;
-        std::unique_ptr<top::IState> initial_state;
+        std::unique_ptr<top::IState> st_init;
         std::shared_ptr<utl::StandardLogger> logger;
     };
 
@@ -32,7 +32,7 @@ public:
         
         // 1. Grid and State
         auto spatial = std::make_shared<Spatial2D>(nx, ny, dx, dy);
-        auto state = std::make_unique<ReservoirBlackOil2DState>(spatial);
+        auto st = std::make_unique<ReservoirBlackOil2DState>(spatial);
         
         // 2. Physics Model and Discretization
         auto cond = num::discretization::pressure_cond_2d(nx, ny, dx, dy, k, 1.0, area); // mu=1 stub
@@ -58,7 +58,7 @@ public:
             idx_func, var_func, 1.0, 2.0, 0.02
         ));
 
-        auto model = std::make_shared<BlackOil2DModel>(cond, pv, wells);
+        auto mdl = std::make_shared<BlackOil2DModel>(cond, pv, wells);
         auto discretizer = std::make_shared<BlackOil2DDiscretizer>();
         
         // 3. Engine Components
@@ -71,7 +71,7 @@ public:
         
         auto pm = std::make_shared<top::SerialParallelManager>();
 
-        auto engine = std::make_unique<top::SimulationEngine>(spatial, model, discretizer, timer, linearizer, solver, pm);
+        auto engine = std::make_unique<top::SimulationEngine>(spatial, mdl, discretizer, timer, linearizer, solver, pm);
 
         // 4. Logger / Observer setup
         auto logger = std::make_shared<utl::StandardLogger>(config);
@@ -91,7 +91,7 @@ public:
         
         engine->add_observer(logger);
 
-        return { std::move(engine), std::move(state), logger };
+        return { std::move(engine), std::move(st), logger };
     }
 };
 
